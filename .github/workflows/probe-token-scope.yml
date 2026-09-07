@@ -1,0 +1,35 @@
+# TEMPORARY probe: does the built-in Actions GITHUB_TOKEN reach another repository?
+# Read-only. Deleted immediately after the answer is recorded.
+name: probe-token-scope
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read OWN repo (control — must succeed)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "own repo:"
+          gh api repos/${{ github.repository }} --jq .full_name || echo "OWN_FAILED"
+      - name: Read the PRIVATE source repo (must fail if token is repo-scoped)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "cross repo read:"
+          if gh api repos/HORUS-Hao/horus-workstation --jq .full_name; then
+            echo "CROSS_REPO_READ=ALLOWED"
+          else
+            echo "CROSS_REPO_READ=DENIED"
+          fi
+      - name: Attempt cross-repo release LIST (write-surface probe, no mutation)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api repos/HORUS-Hao/horus-workstation/releases --jq length; then
+            echo "CROSS_REPO_RELEASES=ALLOWED"
+          else
+            echo "CROSS_REPO_RELEASES=DENIED"
+          fi
